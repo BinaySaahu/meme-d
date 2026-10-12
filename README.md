@@ -47,12 +47,15 @@ npm install
 Create `backend/.env` with the following values:
 
 ```dotenv
-MONGO_URI=mongodb+srv://<username>:<password>@<cluster>/<database>?retryWrites=true&w=majority
+MONGO_URI=mongodb://127.0.0.1:27017/campaign-api?replicaSet=rs0
 PORT=5000
-JWT_SECRET=<long-random-private-secret>
+JWT_SECRET=replace-with-a-long-random-secret
 JWT_EXPIRE=1d
 FRONTEND_URL=http://localhost:3000
-REDIS_URL=redis://127.0.0.1:6379
+REDIS_HOST="<your-redis-host>"
+REDIS_PORT=<your-redis-port>
+REDIS_USERNAME="<your-redis-username>"
+REDIS_PASSWORD="<your-redis-password>"
 ```
 
 Start the API in development mode:
@@ -73,10 +76,6 @@ Backend scripts, run from `backend/`:
 | `npm run typecheck` | Type-check backend TypeScript |
 | `npm test` | Run backend API and payout tests |
 
-There is currently no separate backend compilation/build script. The Render
-instructions below use the type-check as the build step and `npm run start` to
-run the service.
-
 ### 2. Configure and run the frontend
 
 In a second terminal, from the repository root:
@@ -86,7 +85,7 @@ cd frontend\my-app
 npm install
 ```
 
-Create `frontend/my-app/.env.local`:
+Create `frontend/my-app/.env`:
 
 ```dotenv
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
@@ -112,18 +111,6 @@ Frontend scripts, run from `frontend/my-app/`:
 | `npm run lint` | Run ESLint |
 | `npm test` | Run Jest unit tests for frontend payout and budget calculations |
 | `npm run test:watch` | Run frontend Jest tests in watch mode |
-
-## Environment variables
-
-| Variable | Used by | Required | Description |
-| --- | --- | --- | --- |
-| `MONGO_URI` | Backend | Yes | MongoDB connection string. The database must support transactions for view payout updates. |
-| `PORT` | Backend | No | HTTP port; defaults to `5000`. The hosting provider may assign this automatically. |
-| `JWT_SECRET` | Backend | Yes | Private signing secret for JWTs. Generate a strong random value; do not reuse the example or commit it. |
-| `JWT_EXPIRE` | Backend | No | JWT lifetime accepted by `jsonwebtoken`; defaults to `1d`. |
-| `FRONTEND_URL` | Backend | No | Exact frontend origin allowed by CORS; defaults to `http://localhost:3000`. |
-| `REDIS_URL` | Backend | No | Redis connection URL, such as `redis://127.0.0.1:6379` locally or the provider's `rediss://` URL for TLS. Used to cache live campaigns; Redis is optional and MongoDB remains the fallback. |
-| `NEXT_PUBLIC_API_URL` | Frontend | No | API base URL used in the browser; defaults to `http://localhost:5000/api`. Must include `/api`. |
 
 Set real secrets in local ignored `.env` / `.env.local` files or the hosting
 provider's environment settings. The `NEXT_PUBLIC_` prefix means the API URL is
@@ -169,8 +156,7 @@ API base URL is `/api`:
   `localStorage`. Signing out clears the local session. This is a simple
   initial setup and is not an HttpOnly-cookie session.
 - CORS accepts one configured frontend origin through `FRONTEND_URL`.
-- Campaign milestone thresholds must increase, payouts cannot decrease, and
-  each milestone payout cannot exceed the campaign's total budget.
+- Each milestone payout cannot exceed the campaign's total budget.
 - `targetPayout` is the cumulative amount specified by the highest milestone
   crossed. `paidAmount` is the amount actually allocated from the campaign
   budget. An update pays only the positive difference between these values;
@@ -182,8 +168,7 @@ API base URL is `/api`:
   to prevent concurrent updates from over-allocating funds. A standalone local
   MongoDB instance without replica-set mode will not support this behavior.
 - Creator view updates are simulated through the API; no social platform API
-  is connected to verify views. The request still passes normal authentication,
-  ownership, URL, and view-count validation.
+  is connected to verify views.
 - The same post URL cannot be submitted twice to one campaign. View counts are
   non-negative integers and cannot be decreased.
 - The browse list includes live campaigns with budget remaining. The frontend
@@ -202,19 +187,6 @@ Create a **Web Service** for the backend:
 - **Build Command:** `npm install && npm run typecheck`
 - **Start Command:** `npm run start`
 - **Health Check Path:** `/api/health`
-
-Add `MONGO_URI`, `JWT_SECRET`, and `FRONTEND_URL` as Render environment
-variables. `JWT_EXPIRE` is optional. Render supplies `PORT` to the web service.
-Use a MongoDB deployment that supports transactions. Configure `REDIS_URL` with
-a managed Redis instance URL to enable campaign-list caching; without it, the
-API continues by querying MongoDB directly.
-
-Deploy the frontend as a separate Next.js service/provider and set
-`NEXT_PUBLIC_API_URL` to the deployed backend origin plus `/api`, for example
-`https://your-api.example.com/api`. Set the backend's `FRONTEND_URL` to the
-frontend's exact deployed origin (without a path). Since `NEXT_PUBLIC_API_URL`
-is embedded into the frontend build, set it before building/redeploying the
-frontend.
 
 ## API verification
 
