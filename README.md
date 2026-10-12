@@ -1,6 +1,8 @@
 # Campaign Payout Platform
 
-Project URL: [text](https://meme-d.vercel.app/)
+Project URL: [URL](https://meme-d.vercel.app/)
+
+Note: As the Backend is deployed in render so it may cold start as result of which the apis may take longer than expected.
 
 A campaign marketplace with an Express/MongoDB API and a Next.js frontend.
 Brands create campaigns with view-based payout milestones; creators browse
