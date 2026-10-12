@@ -1,0 +1,599 @@
+{
+  "info": {
+    "name": "Campaign Payout API",
+    "description": "Run requests in order to exercise signup, login, campaign, and submission APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "brandToken", "value": "" },
+    { "key": "creatorToken", "value": "" },
+    { "key": "campaignId", "value": "" },
+    { "key": "limitedCampaignId", "value": "" },
+    { "key": "submissionId", "value": "" },
+    { "key": "fundedSubmissionId", "value": "" },
+    { "key": "unfundedSubmissionId", "value": "" },
+    { "key": "postUrl", "value": "" },
+    { "key": "paidAmount", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Signup brand",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('brandEmail', `brand-${Date.now()}@example.test`);",
+              "pm.collectionVariables.set('brandPassword', 'BrandPassword123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('brand registered', () => pm.response.to.have.status(201));",
+              "pm.test('response includes token and brand', () => {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.token).to.be.a('string');",
+              "  pm.expect(body.user.role).to.eql('brand');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Postman Brand\",\"email\":\"{{brandEmail}}\",\"password\":\"{{brandPassword}}\",\"role\":\"brand\"}"
+        },
+        "url": "{{baseUrl}}/auth/signup"
+      }
+    },
+    {
+      "name": "Login brand",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('brand login succeeds', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('brandToken', pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{brandEmail}}\",\"password\":\"{{brandPassword}}\"}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Create campaign",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('campaign created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('campaignId', pm.response.json().campaign._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{brandToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Postman campaign\",\"platform\":\"instagram\",\"totalBudget\":10000,\"milestones\":[{\"views\":100,\"payout\":500},{\"views\":1000,\"payout\":2000}]}"
+        },
+        "url": "{{baseUrl}}/campaigns"
+      }
+    },
+    {
+      "name": "Create campaign with limited budget",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('limited campaign created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('limitedCampaignId', pm.response.json().campaign._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{brandToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Postman limited budget\",\"platform\":\"instagram\",\"totalBudget\":750,\"milestones\":[{\"views\":100,\"payout\":500}]}"
+        },
+        "url": "{{baseUrl}}/campaigns"
+      }
+    },
+    {
+      "name": "Browse live campaigns",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('campaign browse succeeds', () => pm.response.to.have.status(200));",
+              "pm.test('new campaign is listed', () => pm.expect(pm.response.json().campaigns.some(c => c._id === pm.collectionVariables.get('campaignId'))).to.eql(true));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/campaigns"
+      }
+    },
+    {
+      "name": "List brand campaigns",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('brand campaign list succeeds', () => pm.response.to.have.status(200));",
+              "pm.test('budget summary is returned', () => {",
+              "  const campaign = pm.response.json().campaigns.find(c => c._id === pm.collectionVariables.get('campaignId'));",
+              "  pm.expect(campaign.remainingBudget).to.eql(10000);",
+              "  pm.expect(campaign.spentBudget).to.eql(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{brandToken}}" }],
+        "url": "{{baseUrl}}/campaigns/mine"
+      }
+    },
+    {
+      "name": "Signup creator",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('creatorEmail', `creator-${Date.now()}@example.test`);",
+              "pm.collectionVariables.set('creatorPassword', 'CreatorPassword123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('creator registered', () => pm.response.to.have.status(201));",
+              "pm.test('response includes creator role', () => pm.expect(pm.response.json().user.role).to.eql('creator'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Postman Creator\",\"email\":\"{{creatorEmail}}\",\"password\":\"{{creatorPassword}}\",\"role\":\"creator\"}"
+        },
+        "url": "{{baseUrl}}/auth/signup"
+      }
+    },
+    {
+      "name": "Login creator",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('creator login succeeds', () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.set('creatorToken', pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"{{creatorEmail}}\",\"password\":\"{{creatorPassword}}\"}"
+        },
+        "url": "{{baseUrl}}/auth/login"
+      }
+    },
+    {
+      "name": "Create post submission",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('postUrl', `https://example.test/post/${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('submission created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('submissionId', pm.response.json().submission._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"campaignId\":\"{{campaignId}}\",\"postUrl\":\"{{postUrl}}\"}"
+        },
+        "url": "{{baseUrl}}/submissions"
+      }
+    },
+    {
+      "name": "Update views",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('views updated', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('highest applicable target and paid amount are separate', () => {",
+              "  pm.expect(body.submission.targetPayout).to.eql(500);",
+              "  pm.expect(body.submission.paidAmount).to.eql(500);",
+              "});",
+              "pm.collectionVariables.set('paidAmount', body.submission.paidAmount);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":100}" },
+        "url": "{{baseUrl}}/submissions/{{submissionId}}/views"
+      }
+    },
+    {
+      "name": "Update from 500 to 2000 payout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('only 1500 more is allocated to reach 2000', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.submission.targetPayout).to.eql(2000);",
+              "  pm.expect(body.submission.paidAmount).to.eql(2000);",
+              "  pm.expect(body.campaignBudget.spentBudget).to.eql(2000);",
+              "  pm.expect(body.campaignBudget.remainingBudget).to.eql(8000);",
+              "});",
+              "pm.collectionVariables.set('paidAmount', body.submission.paidAmount);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":1500}" },
+        "url": "{{baseUrl}}/submissions/{{submissionId}}/views"
+      }
+    },
+    {
+      "name": "Create funded limited-budget submission",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('limitedFundedUrl', `https://example.test/limited/${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('first limited-budget submission created', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('fundedSubmissionId', pm.response.json().submission._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"campaignId\":\"{{limitedCampaignId}}\",\"postUrl\":\"{{limitedFundedUrl}}\"}"
+        },
+        "url": "{{baseUrl}}/submissions"
+      }
+    },
+    {
+      "name": "Spend part of limited campaign budget",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('first limited payout allocated', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().submission.paidAmount).to.eql(500);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":100}" },
+        "url": "{{baseUrl}}/submissions/{{fundedSubmissionId}}/views"
+      }
+    },
+    {
+      "name": "Create second limited-budget submission",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('limitedUnfundedUrl', `https://example.test/limited/${Date.now()}-second`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('second submission is accepted while budget remains', () => pm.response.to.have.status(201));",
+              "pm.collectionVariables.set('unfundedSubmissionId', pm.response.json().submission._id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"campaignId\":\"{{limitedCampaignId}}\",\"postUrl\":\"{{limitedUnfundedUrl}}\"}"
+        },
+        "url": "{{baseUrl}}/submissions"
+      }
+    },
+    {
+      "name": "Reject payout exceeding remaining budget",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('insufficient budget rejects all-or-nothing', () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":100}" },
+        "url": "{{baseUrl}}/submissions/{{unfundedSubmissionId}}/views"
+      }
+    },
+    {
+      "name": "Verify insufficient-budget update was not applied",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('failed update leaves submission unchanged', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const submission = pm.response.json().submissions.find(s => s._id === pm.collectionVariables.get('unfundedSubmissionId'));",
+              "  pm.expect(submission.views).to.eql(0);",
+              "  pm.expect(submission.targetPayout).to.eql(0);",
+              "  pm.expect(submission.paidAmount).to.eql(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{creatorToken}}" }],
+        "url": "{{baseUrl}}/submissions/mine"
+      }
+    },
+    {
+      "name": "Verify remaining campaign budget",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('remaining budget is not over-allocated', () => {",
+              "  pm.response.to.have.status(200);",
+              "  const campaign = pm.response.json().campaigns.find(c => c._id === pm.collectionVariables.get('limitedCampaignId'));",
+              "  pm.expect(campaign.spentBudget).to.eql(500);",
+              "  pm.expect(campaign.remainingBudget).to.eql(250);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{brandToken}}" }],
+        "url": "{{baseUrl}}/campaigns/mine"
+      }
+    },
+    {
+      "name": "Repeat same view update",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('repeated update succeeds without duplicate payout', () => {",
+              "  pm.response.to.have.status(200);",
+              "  pm.expect(pm.response.json().submission.paidAmount).to.eql(Number(pm.collectionVariables.get('paidAmount')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":1500}" },
+        "url": "{{baseUrl}}/submissions/{{submissionId}}/views"
+      }
+    },
+    {
+      "name": "List creator submissions and earnings",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('creator submissions succeed', () => pm.response.to.have.status(200));",
+              "pm.test('earnings show actual paid amount', () => pm.expect(pm.response.json().totalPaidAmount).to.be.at.least(2000));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{creatorToken}}" }],
+        "url": "{{baseUrl}}/submissions/mine"
+      }
+    },
+    {
+      "name": "Reject negative views",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('negative views rejected', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"views\":-1}" },
+        "url": "{{baseUrl}}/submissions/{{submissionId}}/views"
+      }
+    },
+    {
+      "name": "Reject invalid post URL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('invalid URL rejected', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{creatorToken}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"campaignId\":\"{{campaignId}}\",\"postUrl\":\"javascript:alert(1)\"}"
+        },
+        "url": "{{baseUrl}}/submissions"
+      }
+    }
+  ]
+}
