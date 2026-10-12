@@ -1,6 +1,8 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { getIncrementalPayout, getTargetPayout } from "../utils/payout";
+import {
+  allocateWithinBudget,
+  getIncrementalPayout,
+  getTargetPayout,
+} from "../utils/payout";
 
 const milestones = [
   { views: 1_000, payout: 500 },
@@ -8,22 +10,48 @@ const milestones = [
   { views: 10_000, payout: 4_000 },
 ];
 
-test("returns zero below the first milestone", () => {
-  assert.equal(getTargetPayout(milestones, 999), 0);
+describe("payout calculations", () => {
+  it("returns zero below the first milestone", () => {
+    expect(getTargetPayout(milestones, 999)).toBe(0);
+  });
+
+  it("selects only the highest milestone crossed in one update", () => {
+    expect(getTargetPayout(milestones, 10_000)).toBe(4_000);
+  });
+
+  it("calculates only the amount not already paid", () => {
+    expect(getIncrementalPayout(2_000, 500)).toBe(1_500);
+  });
+
+  it("does not allocate the same payout on a repeated update", () => {
+    expect(getIncrementalPayout(2_000, 2_000)).toBe(0);
+  });
+
+  it("does not allocate a payout below the amount already paid", () => {
+    expect(getIncrementalPayout(500, 2_000)).toBe(0);
+  });
 });
 
-test("selects only the highest milestone crossed in one update", () => {
-  assert.equal(getTargetPayout(milestones, 10_000), 4_000);
-});
+describe("campaign budget cap", () => {
+  it("allows an allocation that exactly uses the remaining budget", () => {
+    expect(allocateWithinBudget(2_000, 500, 1_500)).toEqual({
+      spentBudget: 2_000,
+      remainingBudget: 0,
+    });
+  });
 
-test("calculates only the amount not already paid", () => {
-  assert.equal(getIncrementalPayout(2_000, 500), 1_500);
-});
+  it("rejects an allocation that exceeds the remaining budget", () => {
+    expect(allocateWithinBudget(2_000, 500, 1_501)).toBeNull();
+  });
 
-test("does not allocate the same payout on a repeated update", () => {
-  assert.equal(getIncrementalPayout(2_000, 2_000), 0);
-});
+  it("allows zero allocation without changing the budget", () => {
+    expect(allocateWithinBudget(2_000, 500, 0)).toEqual({
+      spentBudget: 500,
+      remainingBudget: 1_500,
+    });
+  });
 
-test("does not allocate a payout when target is below the amount already paid", () => {
-  assert.equal(getIncrementalPayout(500, 2_000), 0);
+  it("rejects invalid budget values", () => {
+    expect(() => allocateWithinBudget(1_000, 1_001, 1)).toThrow(RangeError);
+  });
 });

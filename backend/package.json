@@ -10,7 +10,7 @@
     "dev": "tsx watch index.ts",
     "start": "tsx index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test tests/*.test.ts"
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

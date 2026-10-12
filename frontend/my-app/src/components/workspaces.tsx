@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
+import {
+  canAllocatePayout,
+  getIncrementalPayout,
+  getTargetPayout,
+  type PayoutMilestone,
+} from "../lib/payout";
 
 export type Role = "brand" | "creator";
 
@@ -12,10 +18,7 @@ export interface User {
   role: Role;
 }
 
-interface Milestone {
-  views: number;
-  payout: number;
-}
+type Milestone = PayoutMilestone;
 
 interface Campaign {
   _id: string;
@@ -133,7 +136,7 @@ export function AuthScreen({
       <section className="auth-aside">
         <Link className="brand-lockup auth-brand" href="/">
           <span className="brand-mark">S</span>
-          <span>Meme'd<span className="brand-period">.</span></span>
+          <span>Meme&apos;d<span className="brand-period">.</span></span>
         </Link>
         <div className="auth-message">
           <p className="eyebrow">GOOD WORK, MEET GOOD PEOPLE</p>
@@ -362,13 +365,24 @@ export function BrandDashboard({
     event.preventDefault();
     setBusy(true);
     setNotice("");
+    const totalBudget = Number(budget);
+    const highestPayout = Math.max(
+      ...milestones.map((milestone) => Number(milestone.payout))
+    );
+
+    if (!canAllocatePayout(totalBudget, 0, highestPayout)) {
+      setNotice("Each milestone payout must fit within the campaign budget.");
+      setBusy(false);
+      return;
+    }
+
     try {
       await apiRequest("/campaigns", token, {
         method: "POST",
         body: JSON.stringify({
           name,
           platform,
-          totalBudget: Number(budget),
+          totalBudget,
           milestones: milestones.map((milestone) => ({
             views: Number(milestone.views),
             payout: Number(milestone.payout),
@@ -929,6 +943,34 @@ export function CreatorDashboard({
                         required
                       />
                     </label>
+                    {campaign && (
+                      <p className="field-note">
+                        Estimated target:{" "}
+                        {money(
+                          getTargetPayout(
+                            campaign.milestones,
+                            Number(
+                              viewInputs[submission._id] ??
+                                String(submission.views)
+                            )
+                          )
+                        )}
+                        {" · "}additional payout:{" "}
+                        {money(
+                          getIncrementalPayout(
+                            getTargetPayout(
+                              campaign.milestones,
+                              Number(
+                                viewInputs[submission._id] ??
+                                  String(submission.views)
+                              )
+                            ),
+                            submission.paidAmount
+                          )
+                        )}
+                        {" · "}final amount is confirmed by the API
+                      </p>
+                    )}
                     <button
                       className="button button-secondary"
                       disabled={busySubmission === submission._id}

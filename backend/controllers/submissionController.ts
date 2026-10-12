@@ -4,7 +4,11 @@ import { z } from "zod";
 import { Campaign } from "../models/Campaign";
 import { Submission } from "../models/Submission";
 import { AppError } from "../utils/AppError";
-import { getIncrementalPayout, getTargetPayout } from "../utils/payout";
+import {
+  allocateWithinBudget,
+  getIncrementalPayout,
+  getTargetPayout,
+} from "../utils/payout";
 
 const submissionSchema = z.object({
   campaignId: z.string().refine(Types.ObjectId.isValid, "Invalid campaign ID"),
@@ -83,6 +87,18 @@ export const updateViews: RequestHandler = async (req, res) => {
         targetPayout,
         currentPaidAmount
       );
+      const allocation = allocateWithinBudget(
+        campaign.totalBudget,
+        campaign.spentBudget ?? 0,
+        additionalPayout
+      );
+
+      if (!allocation) {
+        throw new AppError(
+          409,
+          "Insufficient campaign budget; the view update was not applied"
+        );
+      }
 
       if (additionalPayout > 0) {
         const allocatedCampaign = await Campaign.findOneAndUpdate(
@@ -117,14 +133,9 @@ export const updateViews: RequestHandler = async (req, res) => {
       submission.paidAmount = currentPaidAmount + additionalPayout;
       await submission.save({ session });
 
-      const spentBudget = (campaign.spentBudget ?? 0) + additionalPayout;
       return {
         submission: submission.toObject(),
-        campaignBudget: {
-          totalBudget: campaign.totalBudget,
-          spentBudget,
-          remainingBudget: Math.max(0, campaign.totalBudget - spentBudget),
-        },
+        campaignBudget: allocation,
       };
     });
 

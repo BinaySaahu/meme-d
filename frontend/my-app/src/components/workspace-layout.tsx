@@ -24,9 +24,9 @@ export function WorkspaceLayout({
   return (
     <main className="app-shell">
       <header className="topbar">
-        <Link className="brand-lockup" href={role === "brand" ? "/brand" : "/creator"} aria-label="Meme'd home">
+        <Link className="brand-lockup" href={role === "brand" ? "/brand" : "/creator"} aria-label="Meme&apos;d home">
           <span className="brand-mark">S</span>
-          <span>Meme'd<span className="brand-period">.</span></span>
+          <span>Meme&apos;d<span className="brand-period">.</span></span>
         </Link>
         <div className="topbar-right">
           <span className={`role-pill ${role}`}>{role}</span>
@@ -62,7 +62,7 @@ export function WorkspaceLayout({
 
       {children}
       <footer className="site-footer">
-        <span>Meme'd Studio</span>
+        <span>Meme&apos;d Studio</span>
         <span>Campaigns that make an impact.</span>
       </footer>
     </main>

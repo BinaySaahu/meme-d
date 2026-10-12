@@ -109,6 +109,8 @@ Frontend scripts, run from `frontend/my-app/`:
 | `npm run build` | Create a production build |
 | `npm run start` | Serve the production build |
 | `npm run lint` | Run ESLint |
+| `npm test` | Run Jest unit tests for frontend payout and budget calculations |
+| `npm run test:watch` | Run frontend Jest tests in watch mode |
 
 ## Environment variables
 
@@ -209,6 +211,12 @@ frontend.
 
 ## API verification
 
+Frontend calculation tests, run from `frontend/my-app/`:
+
+```powershell
+npm test
+```
+
 The backend tests can be run locally with:
 
 ```powershell
@@ -216,6 +224,9 @@ cd backend
 npm test
 npm run typecheck
 ```
+
+`npm test` runs the Jest suites configured in `backend/jest.config.cjs`,
+including payout calculation, budget-cap, and API validation tests.
 
 For manual end-to-end testing, use the Postman collection at
 `backend/postman/collection.json` if present in your checkout. Sign up/log in,
