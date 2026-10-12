@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { connectDatabase } from "./config/database";
+import { connectRedis } from "./services/campaignCache";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler";
 import authRoutes from "./routes/authRoutes";
 import campaignRoutes from "./routes/campaignRoutes";
@@ -29,6 +30,7 @@ app.use(errorHandler);
 
 async function startServer(): Promise<void> {
   await connectDatabase();
+  void connectRedis();
   app.listen(port, () => {
     console.log(`API listening on port ${port}`);
   });

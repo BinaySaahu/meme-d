@@ -1,6 +1,11 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
 import { Campaign } from "../models/Campaign";
+import {
+  cacheLiveCampaigns,
+  getCachedLiveCampaigns,
+  invalidateLiveCampaignsCache,
+} from "../services/campaignCache";
 
 const campaignSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -42,11 +47,18 @@ export const createCampaign: RequestHandler = async (req, res) => {
     ...input,
     brandId: req.user!.id,
   });
+  await invalidateLiveCampaignsCache();
 
   res.status(201).json({ campaign });
 };
 
 export const listLiveCampaigns: RequestHandler = async (_req, res) => {
+  const cachedCampaigns = await getCachedLiveCampaigns<unknown[]>();
+  if (cachedCampaigns !== null) {
+    res.status(200).json({ campaigns: cachedCampaigns });
+    return;
+  }
+
   const campaigns = await Campaign.find({
     isLive: true,
     $expr: {
@@ -54,8 +66,10 @@ export const listLiveCampaigns: RequestHandler = async (_req, res) => {
     },
   })
     .select("-__v")
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
+  await cacheLiveCampaigns(campaigns);
   res.status(200).json({ campaigns });
 };
 

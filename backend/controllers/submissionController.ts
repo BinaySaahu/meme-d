@@ -3,6 +3,7 @@ import type { RequestHandler } from "express";
 import { z } from "zod";
 import { Campaign } from "../models/Campaign";
 import { Submission } from "../models/Submission";
+import { invalidateLiveCampaignsCache } from "../services/campaignCache";
 import { AppError } from "../utils/AppError";
 import {
   allocateWithinBudget,
@@ -139,6 +140,7 @@ export const updateViews: RequestHandler = async (req, res) => {
       };
     });
 
+    await invalidateLiveCampaignsCache();
     res.status(200).json(result);
   } finally {
     await session.endSession();

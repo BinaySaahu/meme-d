@@ -1,5 +1,7 @@
 # Campaign Payout Platform
 
+Project URL: [text](https://meme-d.vercel.app/)
+
 A campaign marketplace with an Express/MongoDB API and a Next.js frontend.
 Brands create campaigns with view-based payout milestones; creators browse
 campaigns, submit post URLs, and update simulated views to calculate payouts.
@@ -48,11 +50,8 @@ PORT=5000
 JWT_SECRET=<long-random-private-secret>
 JWT_EXPIRE=1d
 FRONTEND_URL=http://localhost:3000
+REDIS_URL=redis://127.0.0.1:6379
 ```
-
-For a local MongoDB replica set, use a URI such as
-`mongodb://127.0.0.1:27017/campaign-api?replicaSet=rs0`, after initializing
-the local server as replica set `rs0`.
 
 Start the API in development mode:
 
@@ -121,6 +120,7 @@ Frontend scripts, run from `frontend/my-app/`:
 | `JWT_SECRET` | Backend | Yes | Private signing secret for JWTs. Generate a strong random value; do not reuse the example or commit it. |
 | `JWT_EXPIRE` | Backend | No | JWT lifetime accepted by `jsonwebtoken`; defaults to `1d`. |
 | `FRONTEND_URL` | Backend | No | Exact frontend origin allowed by CORS; defaults to `http://localhost:3000`. |
+| `REDIS_URL` | Backend | No | Redis connection URL, such as `redis://127.0.0.1:6379` locally or the provider's `rediss://` URL for TLS. Used to cache live campaigns; Redis is optional and MongoDB remains the fallback. |
 | `NEXT_PUBLIC_API_URL` | Frontend | No | API base URL used in the browser; defaults to `http://localhost:5000/api`. Must include `/api`. |
 
 Set real secrets in local ignored `.env` / `.env.local` files or the hosting
@@ -188,6 +188,9 @@ API base URL is `/api`:
   selects among available campaigns and lets creators submit a valid HTTP(S)
   post URL.
 - Money values are numeric amounts in rupees; the UI formats them as INR.
+- Redis is used as an optional cache for the public live-campaign list.
+Here I have used Redis SDK to connect and store values in Redis.
+Redis is used as an optional cache because as we donot have a steady traffic in our application the Redis DB might get deleted. To tackle this case our api will be falling back to primary DB.
 
 ## Deploying to Render
 
@@ -200,7 +203,9 @@ Create a **Web Service** for the backend:
 
 Add `MONGO_URI`, `JWT_SECRET`, and `FRONTEND_URL` as Render environment
 variables. `JWT_EXPIRE` is optional. Render supplies `PORT` to the web service.
-Use a MongoDB deployment that supports transactions.
+Use a MongoDB deployment that supports transactions. Configure `REDIS_URL` with
+a managed Redis instance URL to enable campaign-list caching; without it, the
+API continues by querying MongoDB directly.
 
 Deploy the frontend as a separate Next.js service/provider and set
 `NEXT_PUBLIC_API_URL` to the deployed backend origin plus `/api`, for example
@@ -227,8 +232,3 @@ npm run typecheck
 
 `npm test` runs the Jest suites configured in `backend/jest.config.cjs`,
 including payout calculation, budget-cap, and API validation tests.
-
-For manual end-to-end testing, use the Postman collection at
-`backend/postman/collection.json` if present in your checkout. Sign up/log in,
-create a campaign as a brand, submit a post as a creator, and exercise view
-updates using a transaction-capable database.
